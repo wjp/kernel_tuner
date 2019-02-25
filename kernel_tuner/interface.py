@@ -266,6 +266,26 @@ _tuning_options = Options([
         verbose is False by default.""", "bool")),
     ])
 
+# Override some of the docstrings for tuning options for test_kernel
+_tuning_options_test_override = Options([
+    ("strategy", ("""Specify the strategy to use for searching through the
+        parameter space, choose from:
+
+            * "brute_force" (default),
+            * "random_sample", specify: *sample_fraction*,
+
+        "brute_force" is the default and iterates over the entire search
+        space.
+
+        "random_sample" can be used to only test a fraction of the
+        search space, specify a *sample_fraction* in the interval [0, 1].
+        """, "")),
+    ("method", None), # not supported
+    ("iterations", None), # not supported
+    ])
+
+
+
 _device_options = Options([
     ("device", ("""CUDA/OpenCL device to use, in case you have multiple
         CUDA-capable GPUs or OpenCL devices you may use this to select one,
@@ -284,11 +304,14 @@ _device_options = Options([
 
 
 
-def _get_docstring(opts):
+def _get_docstring(opts, override=None):
     docstr = ""
     for k, v in opts.items():
-        docstr += "    :param " + k + ": " + v[0] + "\n"
-        docstr += "    :type "  + k + ": " + v[1] + "\n\n"
+        if override and k in override:
+            v = override[k]
+        if v is not None:
+            docstr += "    :param " + k + ": " + v[0] + "\n"
+            docstr += "    :type "  + k + ": " + v[1] + "\n\n"
     return docstr
 
 _tune_kernel_docstring = """ Tune a CUDA kernel given a set of tunable parameters
@@ -519,6 +542,50 @@ def run_kernel(kernel_name, kernel_string, problem_size, arguments,
 
 
 run_kernel.__doc__ = _run_kernel_docstring
+
+_test_kernel_docstring = """ Test a CUDA kernel given a set of tunable parameters
+
+    This function was added to the Kernel Tuner mostly to allow easy testing for kernel correctness.
+    On purpose, the interface is very similar to `tune_kernel()`.
+
+%s
+
+    :returns: A list of dictionaries of all executed kernel configurations and their
+        execution times. And a dictionary with information about the environment
+        in which the tuning took place. This records device name, properties,
+        version info, and so on.
+    :rtype: list(dict()), dict()
+
+""" % _get_docstring(_kernel_options) + _get_docstring(_tuning_options, _tuning_options_test_override) + _get_docstring(_device_options)
+
+def test_kernel(*args, **kwargs):
+    try:
+        if kwargs['strategy'] not in ['brute_force', 'random_sample']:
+            raise ValueError("test_kernel only supports the 'brute_force' and 'random_sample' strategies.")
+    except KeyError:
+        pass
+    try:
+        quiet = kwargs['quiet']
+    except KeyError:
+        quiet = False
+
+    # Pass quiet=True to tune_kernel, because we want to report results differently
+    kwargs['quiet'] = True
+
+    # Force iterations to 1
+    # TODO: Consider allowing to run and verify a kernel multiple times, for e.g., randomized
+    # kernels, or to potentially catch race conditions.
+    # NB: tune_kernel currently only uses iterations for benchmarking, and not for verification.
+    kwargs['iterations'] = 1
+
+    results, env = tune_kernel(*args, iterations=iterations, **kwargs)
+
+    if not quiet:
+        pass # TODO: Reporting
+
+    return results, env
+
+test_kernel.__doc__ = _test_kernel_docstring
 
 def _check_user_input(kernel_name, kernel_source, arguments, block_size_names):
     # see if the kernel arguments have correct type
