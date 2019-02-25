@@ -340,7 +340,7 @@ def tune_kernel(kernel_name, kernel_string, problem_size, arguments,
     logging.debug('device_options: %s', util.get_config_string(device_options))
 
     #select strategy based on user options
-    if sample_fraction and not strategy in [None, 'sample_fraction']:
+    if sample_fraction and not strategy in [None, 'random_sample']:
         raise ValueError("It's not possible to use both sample_fraction in combination with other strategies. " \
                          'Please set strategy=None or strategy="random_sample", when using sample_fraction')
 
@@ -349,7 +349,7 @@ def tune_kernel(kernel_name, kernel_string, problem_size, arguments,
                     "simulated_annealing": simulated_annealing,
                     "firefly_algorithm": firefly_algorithm}
 
-    if strategy in [None, 'sample_fraction', 'brute_force']:
+    if strategy in [None, 'random_sample', 'brute_force']:
         if sample_fraction:
             use_strategy = random_sample
         else:
