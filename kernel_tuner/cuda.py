@@ -134,8 +134,9 @@ class CudaFunctions(object):
             func = self.current_module.get_function(kernel_name)
             return func
         except drv.CompileError as e:
+            from kernel_tuner.core import InvalidConfigurationException
             if "uses too much shared data" in e.stderr:
-                raise Exception("uses too much shared data")
+                raise InvalidConfigurationException("uses too much shared data")
             else:
                 raise e
 
@@ -173,16 +174,26 @@ class CudaFunctions(object):
             kernel execution time.
         :rtype: float
         """
-        start = drv.Event()
-        end = drv.Event()
+
         time = []
-        for _ in range(self.iterations):
-            self.context.synchronize()
-            start.record()
-            self.run_kernel(func, gpu_args, threads, grid)
-            end.record()
-            self.context.synchronize()
-            time.append(end.time_since(start))
+
+        try:
+            start = drv.Event()
+            end = drv.Event()
+            for _ in range(self.iterations):
+                self.context.synchronize()
+                start.record()
+                self.run_kernel(func, gpu_args, threads, grid)
+                end.record()
+                self.context.synchronize()
+                time.append(end.time_since(start))
+        except drv.CudaLaunchError as e:
+            if "too many resources requested for launch" in str(e):
+                raise InvalidConfigurationException
+            else:
+                # TODO: Re-raise?
+                raise RuntimeError
+
         time = sorted(time)
         if times:
             return time

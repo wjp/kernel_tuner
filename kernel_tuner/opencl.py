@@ -82,6 +82,7 @@ class OpenCLFunctions(object):
         :returns: An OpenCL kernel that can be called directly.
         :rtype: pyopencl.Kernel
         """
+        # TODO: Are there any exceptions to catch and re-raise as InvalidConfigurationException?
         prg = cl.Program(self.ctx, kernel_string).build(options=self.compiler_options)
         func = getattr(prg, kernel_name)
         return func
@@ -119,13 +120,22 @@ class OpenCLFunctions(object):
             kernel execution time.
         :rtype: float
         """
-        global_size = (grid[0]*threads[0], grid[1]*threads[1], grid[2]*threads[2])
-        local_size = threads
-        time = []
-        for _ in range(self.iterations):
-            event = func(self.queue, global_size, local_size, *gpu_args)
-            event.wait()
-            time.append((event.profile.end - event.profile.start)*1e-6)
+        try:
+            global_size = (grid[0]*threads[0], grid[1]*threads[1], grid[2]*threads[2])
+            local_size = threads
+            time = []
+            for _ in range(self.iterations):
+                event = func(self.queue, global_size, local_size, *gpu_args)
+                event.wait()
+                time.append((event.profile.end - event.profile.start)*1e-6)
+        except Exception as e:
+            skippable_exceptions = { "OUT_OF_RESOURCES" : "too many resource required",
+                                     "INVALID_WORK_GROUP_SIZE" : "invalid work group size" }
+            for m in skippable_exceptions:
+                if m in str(e):
+                    raise InvalidConfigurationException(skippable_exceptions[m])
+            # TODO: Investigate py2/py3-portable ways of re-raising e
+            raise
         time = sorted(time)
         if times:
             return time

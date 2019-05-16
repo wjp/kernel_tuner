@@ -159,6 +159,10 @@ class KernelSource(object):
                 logging.debug("Checking of arguments list not supported yet for code generators.")
 
 
+class InvalidConfigurationException(Exception):
+    def __init__(self, message):
+        self.message = message
+
 class DeviceInterface(object):
     """Class that offers a High-Level Device Interface to the rest of the Kernel Tuner"""
 
@@ -220,20 +224,20 @@ class DeviceInterface(object):
         time = None
         try:
             time = self.dev.benchmark(func, gpu_args, instance.threads, instance.grid, times)
-        except Exception as e:
+        except InvalidConfigurationException as e:
             #some launches may fail because too many registers are required
             #to run the kernel given the current thread block size
             #the desired behavior is to simply skip over this configuration
             #and proceed to try the next one
-            skippable_exceptions = ["too many resources requested for launch", "OUT_OF_RESOURCES", "INVALID_WORK_GROUP_SIZE"]
-            if any([skip_str in str(e) for skip_str in skippable_exceptions]):
-                logging.debug('benchmark fails due to runtime failure too many resources required')
-                if verbose:
-                    print("skipping config", instance.name, "reason: too many resources requested for launch")
-            else:
-                logging.debug('benchmark encountered runtime failure: ' + str(e))
-                print("Error while benchmarking:", instance.name)
-                raise e
+            #skippable_exceptions = ["too many resources requested for launch", "OUT_OF_RESOURCES", "INVALID_WORK_GROUP_SIZE"]
+            #if any([skip_str in str(e) for skip_str in skippable_exceptions]):
+            logging.debug('benchmark fails due to runtime failure: ' + e.message)
+            if verbose:
+                print("skipping config", instance.name, ", reason:", e.message)
+        except Exception as e:
+            logging.debug('benchmark encountered runtime failure: ' + str(e))
+            print("Error while benchmarking:", instance.name)
+            raise e
         return time
 
     def check_kernel_output(self, func, gpu_args, instance, answer, atol, verify, verbose):
@@ -329,18 +333,17 @@ class DeviceInterface(object):
         func = None
         try:
             func = self.dev.compile(instance.name, instance.kernel_string)
-        except Exception as e:
+        except InvalidConfigurationException as e:
             #compiles may fail because certain kernel configurations use too
             #much shared memory for example, the desired behavior is to simply
             #skip over this configuration and try the next one
-            if "uses too much shared data" in str(e):
-                logging.debug('compile_kernel failed due to kernel using too much shared memory')
-                if verbose:
-                    print("skipping config", instance.name, "reason: too much shared memory used")
-            else:
-                logging.debug('compile_kernel failed due to error: ' + str(e))
-                print("Error while compiling:", instance.name)
-                raise e
+            logging.debug('compile_kernel failed: ' + e.message)
+            if verbose:
+                print("skipping config", instance.name, ", reason:", e.message)
+         except Exception as e:
+            logging.debug('compile_kernel failed due to error: ' + str(e))
+            print("Error while compiling:", instance.name)
+            raise e
         return func
 
     def copy_constant_memory_args(self, cmem_args):

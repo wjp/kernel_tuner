@@ -215,12 +215,15 @@ class CFunctions(object):
         other quality metric you wish to tune on, on its own and should
         therefore return a single floating-point value.
 
+        A negative return value from the C function is interpreted to indicate
+        an invalid parameter configuration that should be skipped during tuning.
+
         Benchmark runs the C function repeatedly and returns the average of the
         values returned by the C function. The number of iterations is set
-        during the creation of the CFunctions object. For all measurements the
-        lowest and highest values are discarded and the rest is included in the
-        average. The reason for this is to be robust against initialization
-        artifacts and other exceptional cases.
+        during the creation of the CFunctions object. If the number of iterations is
+        at least 5, the lowest and highest values are discarded and the rest is
+        included in the average. The reason for this is to be robust against
+        initialization artifacts and other exceptional cases.
 
         :param func: A C function compiled for this specific configuration
         :type func: ctypes._FuncPtr
@@ -255,9 +258,11 @@ class CFunctions(object):
             #is a rather difficult thing to do
             #
             #The current, less than ideal, scheme uses the convention that a
-            #negative time indicates a 'too many resources requested for launch'
+            #negative time indicates an invalid configuration
+            # (cf 'too many resources requested for launch')
             if value < 0.0:
-                raise Exception("too many resources requested for launch")
+                from kernel_tuner.core import InvalidConfigurationException
+                raise InvalidConfigurationException("invalid configuration indicated by negative return value")
 
             time.append(value)
         time = sorted(time)

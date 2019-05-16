@@ -77,11 +77,12 @@ def test_interface_handles_restriction(dev_interface):
 
 @patch('kernel_tuner.core.CudaFunctions')
 def test_interface_handles_runtime_error(dev_interface):
+    from kernel_tuner.core import InvalidConfigurationException
     dev = dev_interface.return_value
     dev_interface.configure_mock(**mock_config)
 
     tune_params = { "block_size_x": [256] }
-    dev.benchmark.side_effect = Exception("too many resources requested for launch")
+    dev.benchmark.side_effect = InvalidConfigurationException("too many resources requested for launch")
 
     kernel_string = "__global__ void fake_kernel(int number)"
     results, _ = tune_kernel("fake_kernel",kernel_string, (1,1), [numpy.int32(0)], tune_params, lang="CUDA")
