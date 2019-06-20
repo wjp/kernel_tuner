@@ -580,6 +580,12 @@ def test_kernel(*args, **kwargs):
 
     results, env = tune_kernel(*args, iterations=iterations, **kwargs)
 
+    # TODO:
+    # Catch verbose logging output from _default_verify_function, and store in 'results'
+    # Ensure easy way to detect failure from 'results'
+    # Summarize: N/M configurations failed verification
+    # Consider option to raise assertion on (first? or at end?) test failure
+
     if not quiet:
         pass # TODO: Reporting
 
