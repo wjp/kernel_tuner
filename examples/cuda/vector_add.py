@@ -8,7 +8,8 @@ from kernel_tuner import tune_kernel
 def tune():
 
     kernel_string = """
-    __global__ void vector_add(float *c, float *a, float *b, int n) {
+    template<typename T>
+    __global__ void vector_add(T *c, T *a, T *b, int n) {
         int i = blockIdx.x * block_size_x + threadIdx.x;
         if (i<n) {
             c[i] = a[i] + b[i];
@@ -28,7 +29,7 @@ def tune():
     tune_params = dict()
     tune_params["block_size_x"] = [128+64*i for i in range(15)]
 
-    result = tune_kernel("vector_add", kernel_string, size, args, tune_params)
+    result = tune_kernel("vector_add<float>", kernel_string, size, args, tune_params)
 
     with open("vector_add.json", 'w') as fp:
         json.dump(result, fp)
