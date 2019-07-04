@@ -66,19 +66,26 @@ class nvrtcSourceModule(DynamicModule):
         if nvcc_options is None:
             nvcc_options = []
 
+        # TODO: Does the program name matter? Use 'name' argument maybe?
         self._prog = self._nvrtc.nvrtcCreateProgram(source, "default_program", [], [])
+        # let kernels be generated for the requested entries
         for name in self._entries.keys():
             self._nvrtc.nvrtcAddNameExpression(self._prog, name)
         try:
             # TODO: figure out options
             self._nvrtc.nvrtcCompileProgram(self._prog, options=[]) # nvcc_options
         except NVRTCException as e:
+            # TODO: Report errors more cleanly
             print(self._nvrtc.nvrtcGetProgramLog(self._prog))
             raise
 
+        # get the mangled ("lowered") names for the requested entries.
+        # pycuda needs these to launch the kernels.
         for name in self._entries.keys():
             self._entries[name] = self._nvrtc.nvrtcGetLoweredName(self._prog, name)
 
+        # TODO: Check encoding
+        # TODO: Check py2/py3 string compatibility
         ptx = bytes(self._nvrtc.nvrtcGetPTX(self._prog), "utf-8")
         from pycuda.driver import jit_input_type
         self.linker.add_data(ptx, jit_input_type.PTX, name)
