@@ -84,9 +84,7 @@ class nvrtcSourceModule(DynamicModule):
         for name in self._entries.keys():
             self._entries[name] = self._nvrtc.nvrtcGetLoweredName(self._prog, name)
 
-        # TODO: Check encoding
-        # TODO: Check py2/py3 string compatibility
-        ptx = bytes(self._nvrtc.nvrtcGetPTX(self._prog), "utf-8")
+        ptx = self._nvrtc.nvrtcGetPTX(self._prog).encode("utf-8")
         from pycuda.driver import jit_input_type
         self.linker.add_data(ptx, jit_input_type.PTX, name)
         return self
