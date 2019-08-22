@@ -86,7 +86,8 @@ class OpenCLFunctions(object):
         try:
             prg = cl.Program(self.ctx, kernel_string).build(options=self.compiler_options)
         except cl.RuntimeError as e:
-            if 'uses too much shared data' in e.stderr:
+            from kernel_tuner.core import InvalidConfigurationException
+            if 'uses too much shared data' in str(e):
                 # with NVIDIA:
                 # ptxas error   : Entry function 'kernel_name' uses too much shared data (0x#### bytes, 0x#### max)
                 raise InvalidConfigurationException("uses too much shared data")

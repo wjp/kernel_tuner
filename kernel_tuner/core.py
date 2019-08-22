@@ -340,7 +340,7 @@ class DeviceInterface(object):
             logging.debug('compile_kernel failed: ' + e.message)
             if verbose:
                 print("skipping config", instance.name, ", reason:", e.message)
-         except Exception as e:
+        except Exception as e:
             logging.debug('compile_kernel failed due to error: ' + str(e))
             print("Error while compiling:", instance.name)
             raise e
