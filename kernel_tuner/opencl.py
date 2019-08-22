@@ -82,8 +82,17 @@ class OpenCLFunctions(object):
         :returns: An OpenCL kernel that can be called directly.
         :rtype: pyopencl.Kernel
         """
-        # TODO: Are there any exceptions to catch and re-raise as InvalidConfigurationException?
-        prg = cl.Program(self.ctx, kernel_string).build(options=self.compiler_options)
+        # TODO: Are there any other exceptions to catch and re-raise as InvalidConfigurationException?
+        try:
+            prg = cl.Program(self.ctx, kernel_string).build(options=self.compiler_options)
+        except cl.RuntimeError as e:
+            if 'uses too much shared data' in e.stderr:
+                # with NVIDIA:
+                # ptxas error   : Entry function 'kernel_name' uses too much shared data (0x#### bytes, 0x#### max)
+                raise InvalidConfigurationException("uses too much shared data")
+            else:
+                raise e # CHECKME
+
         func = getattr(prg, kernel_name)
         return func
 
