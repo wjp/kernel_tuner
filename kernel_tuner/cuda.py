@@ -35,7 +35,7 @@ class nvrtcSourceModule(DynamicModule):
     # FIXME: Check relevance of each argument
     def __init__(self, source, nvcc="nvcc", options=None, keep=False,
             no_extern_c=False, arch=None, code=None, cache_dir=None,
-            include_dirs=None, cuda_libdir=None, entries=None):
+            include_dirs=None, cuda_libdir=None):
         if include_dirs is None:
             include_dirs = []
         super(nvrtcSourceModule, self).__init__(nvcc=nvcc,
@@ -49,17 +49,17 @@ class nvrtcSourceModule(DynamicModule):
         #    options.append('-rdc=true')
         #if '-lcudadevrt' not in options:
         #    options.append('-lcudadevrt')
-        if entries is None:
-            entries = []
 
-        self._entries = { n: None for n in entries }
+        self._entries = { options[i+1]: None for i in range(len(options)-1) if options[i] == '-e' }
+
         self._nvrtc = NVRTCInterface() # lib_path=path-to-libnvrtc.so ?
+        self._prog = None
 
         self.add_source(source, nvcc_options=options)
         self.add_stdlib('cudadevrt')
         self.link()
     def __del__(self):
-        if hasattr(self, '_prog'):
+        if self._prog is not None:
             self._nvrtc.nvrtcDestroyProgram(self._prog)
 
     def add_source(self, source, nvcc_options=None, name='kernel.ptx'):
@@ -88,7 +88,13 @@ class nvrtcSourceModule(DynamicModule):
         from pycuda.driver import jit_input_type
         self.linker.add_data(ptx, jit_input_type.PTX, name)
         return self
+    def get_function(name):
+        try:
+            name = self._entries[name]
+        except KeyError:
+            pass
 
+        return super(nvrtcSourceModule, self).get_function(name)
 
 class CudaFunctions(object):
     """Class that groups the CUDA functions on maintains state about the device"""
@@ -203,9 +209,9 @@ class CudaFunctions(object):
             self.current_module = self.source_mod(kernel_string, options=compiler_options + ["-e", kernel_name],
                                              arch=('compute_' + self.cc) if self.cc != "00" else None,
                                              code=('sm_' + self.cc) if self.cc != "00" else None,
-                                             cache_dir=False, no_extern_c=no_extern_c, entries=[kernel_name])
+                                             cache_dir=False, no_extern_c=no_extern_c)
 
-            func = self.current_module.get_function(self.current_module._entries[kernel_name])
+            func = self.current_module.get_function(kernel_name)
             return func
         except drv.CompileError as e:
             if "uses too much shared data" in e.stderr:
